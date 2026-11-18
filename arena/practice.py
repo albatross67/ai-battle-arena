@@ -5,6 +5,10 @@
 Practice seeds (1..N) are public. Official tournament seeds, map realizations,
 and opponent lineups are hidden until evaluation and WILL differ. Exit codes:
 0 = clean run, 1 = your bot faulted at least once, 2 = module rejected at load.
+
+Fog-of-war reminder: these stats (and any animated replay) are computed from the
+omniscient match log, but your bot only ever saw its own fogged observation —
+vision radius 8, rocks occlude (see wasm/arena_bot.h).
 """
 import argparse
 import json
@@ -17,6 +21,7 @@ from .engine import run_match
 from .wasm_bot import make_wasm_strategy
 
 BOT_ID = "W1_You"
+MAX_FAULT_LINES = 10  # per-match fault lines printed; the JSON report is complete
 
 
 def run_practice(wasm_path: str | Path, seeds: int) -> dict:
@@ -31,6 +36,7 @@ def run_practice(wasm_path: str | Path, seeds: int) -> dict:
     deaths = Counter()
     errors = Counter()
     first_error = None
+    match_faults = []
     for seed in range(1, seeds + 1):
         lineup = {k: v for k, v in REFERENCE_BOTS.items() if k != "A2_Berserker"}
         lineup[BOT_ID] = strategy
@@ -43,10 +49,15 @@ def run_practice(wasm_path: str | Path, seeds: int) -> dict:
         kills += me["eliminations"]
         damage_done += me["damage_done"]
         last_damage = None
+        seed_faults = Counter()
+        seed_first_tick = None
         for frame in log["frames"]:
             for ev in frame["events"]:
                 if ev["type"] == "bot_error" and ev["id"] == BOT_ID:
                     errors[ev["reason"]] += 1
+                    seed_faults[ev["reason"]] += 1
+                    if seed_first_tick is None:
+                        seed_first_tick = frame["tick"]
                     if first_error is None:
                         first_error = {"seed": seed, "tick": frame["tick"],
                                        "reason": ev["reason"]}
@@ -57,6 +68,9 @@ def run_practice(wasm_path: str | Path, seeds: int) -> dict:
                     last_damage = "storm"
                 elif ev["type"] == "elimination" and ev["id"] == BOT_ID:
                     deaths[last_damage or "combat"] += 1
+        if seed_faults:
+            match_faults.append({"seed": seed, "first_tick": seed_first_tick,
+                                 "faults": dict(seed_faults)})
     placements.sort()
     n = len(placements)
     return {"wasm_sha256": strategy.sha256, "seeds": seeds, "wins": wins,
@@ -66,7 +80,7 @@ def run_practice(wasm_path: str | Path, seeds: int) -> dict:
             "median_survival_tick": sorted(survival_ticks)[n // 2],
             "kills": kills, "damage_done": damage_done, "damage_taken": damage_taken,
             "deaths": dict(deaths), "bot_errors": dict(errors),
-            "first_error": first_error}
+            "first_error": first_error, "match_faults": match_faults}
 
 
 def report(stats: dict) -> str:
@@ -79,10 +93,22 @@ def report(stats: dict) -> str:
              f"{stats['damage_done']}/{stats['damage_taken']}",
              f"deaths: {stats['deaths']}"]
     if stats["bot_errors"]:
+        faulting = stats["match_faults"]
         lines.append(f"BOT ERRORS: {stats['bot_errors']}")
         lines.append(f"first error: {stats['first_error']} — fix this before submitting!")
+        lines.append(f"faulting matches: {len(faulting)}/{stats['seeds']}")
+        shown = faulting[:MAX_FAULT_LINES]
+        for m in shown:
+            breakdown = ", ".join(f"{n}x {reason}"
+                                  for reason, n in sorted(m["faults"].items()))
+            lines.append(f"  seed {m['seed']}: {breakdown} (first at tick {m['first_tick']})")
+        if len(faulting) > len(shown):
+            lines.append(f"  … and {len(faulting) - len(shown)} more faulting matches "
+                         f"(full list in the --json report)")
     else:
         lines.append("no bot errors — your module ran cleanly on every tick")
+    lines.append("reminder: your bot decided from fogged observations (vision radius 8, "
+                 "rocks occlude); replays and these stats are omniscient")
     return "\n".join(lines)
 
 
