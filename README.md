@@ -69,8 +69,11 @@ python -m arena.practice my_bot.wasm --seeds 50
 python -m arena.cli --seed 99 --wasm my_bot.wasm
 ```
 
-Start with [docs/WASM_BOT.md](docs/WASM_BOT.md) — it walks through the whole
-contract, the sandbox rules, building, and testing. The commented header
+Start with the **[participant quick start](docs/QUICKSTART.md)** — objective,
+what your bot sees (fog of war), actions, sandbox rules, both participation
+paths, and a five-minute smoke test. Then [docs/WASM_BOT.md](docs/WASM_BOT.md)
+walks through the whole contract, the sandbox rules, building, and testing in
+full. The commented header
 [wasm/arena_bot.h](wasm/arena_bot.h) is the authoritative interface definition.
 A prebuilt `wasm/starter_bot.wasm` is included (compiled from
 `starter_bot.c` with the tournament's pinned toolchain) so you can try the
@@ -86,7 +89,8 @@ arena/        the game: engine, map generator, reference bots, CLI,
               replay viewer, WASM sandbox adapter, practice harness
 wasm/         C bot kit: arena_bot.h (the interface), starter_bot.c (example),
               starter_bot.wasm (prebuilt example), build.ps1 (Windows build)
-docs/         WASM_BOT.md (how to write a fighter),
+docs/         QUICKSTART.md (participant quick start: start here),
+              WASM_BOT.md (how to write a fighter),
               BOT_API_DRAFT.md (full game-rules & API reference, draft)
 ops/          scripts the hosted tournament pipeline will run — a submission
               validator, a match batch runner, and an isolation self-check;
