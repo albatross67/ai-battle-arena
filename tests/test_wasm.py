@@ -2,6 +2,7 @@ import hashlib
 import json
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 try:
@@ -218,13 +219,15 @@ class StarterBotTests(unittest.TestCase):
         self.assertEqual(first, fresh)
 
     def test_practice_harness_reports_clean_run(self):
-        from arena.practice import run_practice
+        from arena.practice import report, run_practice
         stats = run_practice(STARTER, seeds=3)
         self.assertEqual(stats["bot_errors"], {})
         self.assertIsNone(stats["first_error"])
+        self.assertEqual(stats["match_faults"], [])
         self.assertEqual(stats["seeds"], 3)
         self.assertTrue(1 <= stats["placement"]["median"] <= 10)
         self.assertEqual(stats["wasm_sha256"], self.make(STARTER, self.ids).sha256)
+        self.assertIn("no bot errors", report(stats))
 
     def test_practice_harness_counts_faults(self):
         from arena.practice import run_practice
@@ -233,6 +236,41 @@ class StarterBotTests(unittest.TestCase):
         stats = run_practice(wat_file(tmp, "traps_in_act"), seeds=2)
         self.assertIn("WasmTrap", stats["bot_errors"])
         self.assertEqual(stats["first_error"]["seed"], 1)
+
+    def test_practice_harness_per_match_fault_breakdown(self):
+        from arena.practice import report, run_practice
+        import tempfile
+        tmp = Path(tempfile.mkdtemp())
+        stats = run_practice(wat_file(tmp, "traps_in_act"), seeds=2)
+        self.assertEqual([m["seed"] for m in stats["match_faults"]], [1, 2])
+        per_match_total = Counter()
+        for m in stats["match_faults"]:
+            self.assertGreaterEqual(m["first_tick"], 1)
+            per_match_total.update(m["faults"])
+        self.assertEqual(dict(per_match_total), stats["bot_errors"])
+        self.assertEqual(stats["match_faults"][0]["first_tick"],
+                         stats["first_error"]["tick"])
+        text = report(stats)
+        self.assertIn("faulting matches: 2/2", text)
+        self.assertIn("seed 1:", text)
+        self.assertIn("seed 2:", text)
+        self.assertIn("WasmTrap", text)
+
+    def test_practice_report_truncates_long_fault_lists(self):
+        from arena.practice import MAX_FAULT_LINES, report
+        faults = [{"seed": s, "first_tick": 1, "faults": {"WasmTrap": 1}}
+                  for s in range(1, MAX_FAULT_LINES + 4)]
+        stats = {"wasm_sha256": "0" * 64, "seeds": len(faults), "wins": 0,
+                 "win_rate": 0.0,
+                 "placement": {"best": 10, "median": 10, "worst": 10},
+                 "median_survival_tick": 1, "kills": 0, "damage_done": 0,
+                 "damage_taken": 0, "deaths": {},
+                 "bot_errors": {"WasmTrap": len(faults)},
+                 "first_error": {"seed": 1, "tick": 1, "reason": "WasmTrap"},
+                 "match_faults": faults}
+        text = report(stats)
+        self.assertEqual(text.count("  seed "), MAX_FAULT_LINES)
+        self.assertIn("and 3 more faulting matches", text)
 
 
 if __name__ == "__main__":
