@@ -10,7 +10,8 @@ For the **C/WASM interface** your fighter actually implements, this document is
 source of truth for struct layouts, enums, and capacities (ABI v1, draft), and
 [WASM_BOT.md](WASM_BOT.md) documents the sandbox rules (fuel budget, memory cap,
 fault behavior). The WASM structs carry the same information described below,
-flattened into int32 fields.
+flattened into int32 fields. New participants should start with the
+[participant quick start](QUICKSTART.md).
 
 Conceptual Python reference function:
 

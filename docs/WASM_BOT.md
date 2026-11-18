@@ -5,6 +5,7 @@ arena does everything else. You compile and test **your own** bot locally with
 the tools below; tournament submissions are **not open yet**, and when they do
 open, they will be compiled and run only on isolated remote infrastructure —
 never run anyone else's bot on your machine (see [SECURITY.md](../SECURITY.md)).
+New here? Read the [participant quick start](QUICKSTART.md) first.
 
 
 ## The whole contract
@@ -98,9 +99,12 @@ python -m arena.practice my_bot.wasm --seeds 50
 
 The practice harness plays your fighter against nine reference bots across the
 public practice seeds and reports wins, placements, survival, damage, deaths,
-and — most importantly — any `bot_error` faults (exit code 1 if your bot faulted,
-2 if the module was rejected at load). Official tournament seeds, maps, and
-lineups are hidden and will differ. For a single animated match:
+and — most importantly — any `bot_error` faults with a per-match breakdown
+(exit code 1 if your bot faulted, 2 if the module was rejected at load; add
+`--json report.json` for the machine-readable report including `match_faults`).
+Official tournament seeds, maps, and lineups are hidden and will differ.
+Remember: your bot decides from fogged observations, while practice stats and
+replays are omniscient spectator views. For a single animated match:
 
 ```
 python -m arena.cli --seed 99 --wasm my_bot.wasm
